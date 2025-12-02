@@ -4,8 +4,8 @@ module.exports = {
     // Configuración del servidor
     PORT: process.env.PORT || 3000,
 
-    // URLs
-    APP_BASE_URL: process.env.APP_BASE_URL || 'http://localhost/inventario-app/web',
+    // URLs (ergo, anterior http://localhost/inventario-app/web, ahora havainventory.infinityfreeapp.com)
+    APP_BASE_URL: process.env.APP_BASE_URL || 'http://havainventory.infinityfreeapp.com/inventario-app/web',
     UPDATE_RATE_ENDPOINT: process.env.UPDATE_RATE_ENDPOINT || '/index.php?r=site/update-usdt-rate',
     P2P_URL: process.env.P2P_URL || 'https://p2p.binance.com/trade/all-payments/USDT?fiat=VES',
 
