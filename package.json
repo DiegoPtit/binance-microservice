@@ -1,0 +1,23 @@
+{
+  "name": "binance-p2p-scraper",
+  "version": "1.0.0",
+  "description": "Microservicio para extraer precios USDT/VES de Binance P2P",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "scrape": "node scraper.js"
+  },
+  "keywords": ["binance", "p2p", "scraper", "usdt", "ves"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "puppeteer": "^21.6.0",
+    "axios": "^1.6.2",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
