@@ -1,6 +1,65 @@
 const puppeteer = require('puppeteer');
 const config = require('./config');
 
+// Instancia global de navegador persistente
+let globalBrowser = null;
+let globalBrowserInitializing = false;
+
+/**
+ * Obtiene o inicializa la instancia persistente del navegador
+ * @returns {Promise<Browser>} - Instancia de Puppeteer Browser
+ */
+async function getBrowserInstance() {
+    // Si ya existe y está conectado, retornar
+    if (globalBrowser && globalBrowser.isConnected()) {
+        console.log('[!] Reutilizando instancia de navegador existente');
+        return globalBrowser;
+    }
+
+    // Si ya se está inicializando, esperar
+    if (globalBrowserInitializing) {
+        console.log('[!] Esperando inicialización del navegador...');
+        while (globalBrowserInitializing) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        return globalBrowser;
+    }
+
+    // Inicializar nueva instancia
+    try {
+        globalBrowserInitializing = true;
+        console.log('[!] Inicializando nueva instancia de navegador persistente...');
+
+        globalBrowser = await puppeteer.launch(config.PUPPETEER_OPTIONS);
+
+        // Event listener para reiniciar si se desconecta
+        globalBrowser.on('disconnected', () => {
+            console.log('[!!!] Navegador desconectado, se reiniciará en el próximo uso');
+            globalBrowser = null;
+        });
+
+        console.log('[!] Navegador persistente inicializado correctamente');
+        return globalBrowser;
+    } catch (error) {
+        console.error('[!!!] Error inicializando navegador:', error.message);
+        globalBrowser = null;
+        throw error;
+    } finally {
+        globalBrowserInitializing = false;
+    }
+}
+
+/**
+ * Cierra la instancia persistente del navegador (solo usar al apagar el servidor)
+ */
+async function closeBrowserInstance() {
+    if (globalBrowser && globalBrowser.isConnected()) {
+        console.log('[!] Cerrando instancia persistente del navegador...');
+        await globalBrowser.close();
+        globalBrowser = null;
+    }
+}
+
 /**
  * Convierte el formato de precio de Binance P2P a número flotante
  * Binance P2P usa PUNTO como separador DECIMAL (formato USA): "389.000" = 389.0 VES
@@ -43,29 +102,29 @@ function parsePrice(priceText) {
  * @returns {Promise<Object>} - Objeto con precios extraídos y estadísticas
  */
 async function scrapeBinanceP2P() {
-    let browser = null;
+    let page = null;
 
     try {
-        console.log(' Iniciando scraping de Binance P2P...');
-        console.log(` URL: ${config.P2P_URL}`);
+        console.log('[!] Iniciando scraping de Binance P2P...');
+        console.log(`[!] URL: ${config.P2P_URL}`);
 
-        // Lanzar navegador con Puppeteer
-        browser = await puppeteer.launch(config.PUPPETEER_OPTIONS);
-        const page = await browser.newPage();
+        // Obtener instancia persistente del navegador
+        const browser = await getBrowserInstance();
+        page = await browser.newPage();
 
         // Configurar timeout y user agent
         page.setDefaultTimeout(config.PAGE_TIMEOUT);
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
         // Navegar a la página
-        console.log(' Navegando a Binance P2P...');
+        console.log('[!] Navegando a Binance P2P...');
         await page.goto(config.P2P_URL, {
             waitUntil: 'networkidle2',
             timeout: config.PAGE_TIMEOUT
         });
 
         // Esperar a que carguen las tarjetas de trading
-        console.log(' Esperando tarjetas de trading...');
+        console.log('[!] Esperando tarjetas de trading...');
         await page.waitForSelector(config.SELECTORS.TRADING_CARD, {
             timeout: config.PAGE_TIMEOUT
         });
@@ -74,7 +133,7 @@ async function scrapeBinanceP2P() {
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Extraer precios
-        console.log(' Extrayendo precios...');
+        console.log('[!] Extrayendo precios...');
         const prices = await page.evaluate((selectors) => {
             const cards = document.querySelectorAll(selectors.TRADING_CARD);
             const results = [];
@@ -105,8 +164,9 @@ async function scrapeBinanceP2P() {
             return results;
         }, config.SELECTORS);
 
-        await browser.close();
-        browser = null;
+        // Solo cerrar la página, NO el navegador
+        await page.close();
+        page = null;
 
         console.log(` Extraídos ${prices.length} elementos`);
 
@@ -150,7 +210,7 @@ async function scrapeBinanceP2P() {
         };
 
     } catch (error) {
-        console.error(' Error en scraping:', error.message);
+        console.error('[!!!] Error en scraping:', error.message);
 
         return {
             success: false,
@@ -158,8 +218,9 @@ async function scrapeBinanceP2P() {
             timestamp: new Date().toISOString()
         };
     } finally {
-        if (browser) {
-            await browser.close();
+        // Solo cerrar la página si quedó abierta, NO el navegador
+        if (page && !page.isClosed()) {
+            await page.close().catch(err => console.error('Error cerrando página:', err));
         }
     }
 }
@@ -168,14 +229,18 @@ async function scrapeBinanceP2P() {
 if (require.main === module) {
     scrapeBinanceP2P()
         .then(result => {
-            console.log('\n Resultado completo:');
+            console.log('\n[!] Resultado completo:');
             console.log(JSON.stringify(result, null, 2));
             process.exit(result.success ? 0 : 1);
         })
         .catch(error => {
-            console.error('Error fatal:', error);
+            console.error('[!!!] Error fatal:', error);
             process.exit(1);
         });
 }
 
-module.exports = { scrapeBinanceP2P };
+module.exports = {
+    scrapeBinanceP2P,
+    getBrowserInstance,
+    closeBrowserInstance
+};

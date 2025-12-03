@@ -1,7 +1,8 @@
 const express = require('express');
 const axios = require('axios');
+const cron = require('node-cron');
 const config = require('./config');
-const { scrapeBinanceP2P } = require('./scraper');
+const { scrapeBinanceP2P, getBrowserInstance, closeBrowserInstance } = require('./scraper');
 const { smartPost, isAntiBotChallenge } = require('./smart-request');
 const { createEndpointLogger } = require('./logger');
 
@@ -130,10 +131,11 @@ app.post('/update-rate', async (req, res) => {
             throw new Error(`Scraping falló: ${scrapeResult.error}`);
         }
 
-        const bestPrice = scrapeResult.data.bestPrice;
+        const avgPrice = scrapeResult.data.avgPrice; // CAMBIO: usar precio promedio
         console.log(`█ Scraping exitoso`);
-        console.log(`  • Mejor precio: ${bestPrice} VES`);
-        console.log(`  • Precio promedio: ${scrapeResult.data.avgPrice} VES`);
+        console.log(`  • Precio promedio (enviando): ${avgPrice} VES`);
+        console.log(`  • Mejor precio: ${scrapeResult.data.bestPrice} VES`);
+        console.log(`  • Precio máximo: ${scrapeResult.data.maxPrice} VES`);
         console.log(`  • Total ofertas: ${scrapeResult.data.totalOffers}`);
 
         // 2. Preparar actualización a la aplicación principal
@@ -143,11 +145,12 @@ app.post('/update-rate', async (req, res) => {
 
         // Preparar datos como objeto para smartPost
         const postData = {
-            precio_paralelo: bestPrice,
-            observaciones: `Actualización automática desde Binance P2P. ${scrapeResult.data.totalOffers} ofertas analizadas.`,
+            precio_paralelo: avgPrice, // CAMBIO: enviar precio promedio
+            observaciones: `Actualización automática desde Binance P2P (precio promedio). ${scrapeResult.data.totalOffers} ofertas analizadas.`,
             source: 'binance-p2p-scraper',
             metadata: JSON.stringify({
                 avgPrice: scrapeResult.data.avgPrice,
+                bestPrice: scrapeResult.data.bestPrice,
                 maxPrice: scrapeResult.data.maxPrice,
                 totalOffers: scrapeResult.data.totalOffers,
                 timestamp: scrapeResult.timestamp
@@ -155,7 +158,7 @@ app.post('/update-rate', async (req, res) => {
         };
 
         console.log('\n█ DATOS A ENVIAR (POST):');
-        console.log(`  • precio_paralelo: ${bestPrice}`);
+        console.log(`  • precio_paralelo: ${avgPrice} (promedio)`);
         console.log(`  • observaciones: ${postData.observaciones}`);
         console.log(`  • source: binance-p2p-scraper`);
         console.log(`  • metadata: ${postData.metadata}`);
@@ -244,7 +247,7 @@ app.post('/update-rate', async (req, res) => {
                 ip: req.ip || req.connection.remoteAddress
             },
             process: {
-                'Scraping': `Exitoso - Mejor precio: ${bestPrice} VES`,
+                'Scraping': `Exitoso - Precio promedio: ${avgPrice} VES`,
                 'Ofertas analizadas': scrapeResult.data.totalOffers,
                 'URL destino': updateUrl,
                 'Duración request': `${requestDuration}ms`
@@ -252,7 +255,7 @@ app.post('/update-rate', async (req, res) => {
             result: {
                 success: isSuccess,
                 status: updateResponse.status,
-                data: `Precio actualizado a ${bestPrice} VES`
+                data: `Precio actualizado a ${avgPrice} VES (promedio)`
             },
             duration: totalDuration
         });
@@ -260,7 +263,7 @@ app.post('/update-rate', async (req, res) => {
         // Responder al cliente del microservicio
         res.json({
             success: isSuccess,
-            message: isSuccess ? 'Precio actualizado correctamente' : 'Request enviado pero status code no exitoso',
+            message: isSuccess ? 'Precio promedio actualizado correctamente' : 'Request enviado pero status code no exitoso',
             statusCode: updateResponse.status,
             statusText: updateResponse.statusText || 'OK',
             duration: {
@@ -268,7 +271,8 @@ app.post('/update-rate', async (req, res) => {
                 request: requestDuration
             },
             data: {
-                newPrice: bestPrice,
+                newPrice: avgPrice,
+                priceType: 'average',
                 scrapeInfo: scrapeResult.data,
                 updateResponse: {
                     status: updateResponse.status,
@@ -377,7 +381,7 @@ app.use((req, res) => {
 
 // Iniciar servidor
 const PORT = config.PORT;
-app.listen(PORT, () => {
+const server = app.listen(PORT, async () => {
     console.log(`\n█ Servidor iniciado en http://localhost:${PORT}`);
     console.log(`█ Endpoints disponibles:`);
     console.log(`  • GET  /health       (Estado del servicio)`);
@@ -389,7 +393,107 @@ app.listen(PORT, () => {
     console.log(`  • URL P2P: ${config.P2P_URL}`);
     console.log(`  • Endpoint destino: ${config.APP_BASE_URL}${config.UPDATE_RATE_ENDPOINT}`);
     console.log(`  • Logs guardados en: ./logs/`);
+
+    // Pre-inicializar navegador persistente
+    console.log(`\n█ Pre-inicializando navegador persistente...`);
+    try {
+        await getBrowserInstance();
+        console.log(`[!] Navegador persistente listo`);
+    } catch (error) {
+        console.error(`[!!!] Error pre-inicializando navegador:`, error.message);
+        console.error(`   Se intentará inicializar en el primer uso`);
+    }
+
     console.log(`\n█ Tip: Ejecuta POST http://localhost:${PORT}/update-rate para testear\n`);
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DAEMON SCHEDULER - Ejecuta /update-rate cada 15 minutos
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Función auxiliar para ejecutar update-rate internamente (sin HTTP)
+ */
+async function runUpdateRateDaemon() {
+    console.log('\n' + '═'.repeat(80));
+    console.log('[!] DAEMON: Ejecución automática de update-rate');
+    console.log('═'.repeat(80));
+    console.log(`[!] Timestamp: ${new Date().toISOString()}\n`);
+
+    try {
+        // Hacer un request interno POST a /update-rate
+        const axios = require('axios');
+        const response = await axios.post(`http://localhost:${PORT}/update-rate`, {}, {
+            timeout: 60000 // 60 segundos de timeout
+        });
+
+        console.log('[!] DAEMON: Actualización completada exitosamente');
+        console.log(`   Status: ${response.status}`);
+        console.log(`   Precio actualizado: ${response.data.data?.newPrice} VES`);
+        console.log('═'.repeat(80) + '\n');
+    } catch (error) {
+        console.error('[!!!] DAEMON: Error en actualización automática');
+        console.error(`   Error: ${error.message}`);
+        if (error.response) {
+            console.error(`   HTTP Status: ${error.response.status}`);
+        }
+        console.log('═'.repeat(80) + '\n');
+    }
+}
+
+// Configurar cron job: cada 15 minutos
+// Formato cron: */15 * * * * = cada 15 minutos
+const daemonSchedule = '*/15 * * * *';
+console.log(`\n[!] Configurando daemon programado...`);
+console.log(`   [!] Frecuencia: Cada 15 minutos`);
+console.log(`   [!] Expresión cron: ${daemonSchedule}`);
+
+const cronJob = cron.schedule(daemonSchedule, runUpdateRateDaemon, {
+    scheduled: true,
+    timezone: "America/Caracas" // Ajusta según tu zona horaria
+});
+
+console.log(`\n[!] Daemon programado y activo`);
+
+// Ejecutar inmediatamente al iniciar (opcional, puedes comentar esta línea si no quieres)
+console.log(`\n[!] Ejecutando primera actualización inmediata...`);
+setTimeout(() => {
+    runUpdateRateDaemon().catch(err => console.error('Error en ejecución inicial:', err));
+}, 5000); // Esperar 5 segundos después del inicio del servidor
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GRACEFUL SHUTDOWN - Limpieza al cerrar el servidor
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function gracefulShutdown(signal) {
+    console.log(`\n\n${'═'.repeat(80)}`);
+    console.log(`[!] Señal ${signal} recibida, cerrando servidor...`);
+    console.log('═'.repeat(80));
+
+    // Detener cron job
+    console.log('[!] Deteniendo daemon scheduler...');
+    cronJob.stop();
+
+    // Cerrar servidor HTTP
+    console.log('[!] Cerrando servidor HTTP...');
+    server.close(() => {
+        console.log('[!] Servidor HTTP cerrado');
+    });
+
+    // Cerrar navegador persistente
+    console.log('[!] Cerrando navegador persistente...');
+    await closeBrowserInstance();
+    console.log('[!] Navegador cerrado');
+
+    console.log('═'.repeat(80));
+    console.log('Proceso terminado...');
+    console.log('═'.repeat(80) + '\n');
+
+    process.exit(0);
+}
+
+// Capturar señales de terminación
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 module.exports = app;
