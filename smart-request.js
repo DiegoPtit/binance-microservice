@@ -4,7 +4,7 @@
  */
 
 const axios = require('axios');
-const puppeteer = require('puppeteer');
+const { chromium } = require('playwright');
 
 /**
  * Detecta si la respuesta es un challenge anti-bot
@@ -20,11 +20,11 @@ function isAntiBotChallenge(html) {
 }
 
 /**
- * Realiza un POST usando Puppeteer para bypass anti-bot
+ * Realiza un POST usando Playwright para bypass anti-bot
  */
-async function postWithPuppeteer(url, formData, options = {}) {
-    const browser = await puppeteer.launch({
-        headless: 'new',
+async function postWithPlaywright(url, formData, options = {}) {
+    const browser = await chromium.launch({
+        headless: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
@@ -33,17 +33,18 @@ async function postWithPuppeteer(url, formData, options = {}) {
     });
 
     try {
-        const page = await browser.newPage();
+        const context = await browser.newContext();
+        const page = await context.newPage();
 
         // Navegar primero a la página para obtener cookies anti-bot
-        console.log('🌐 Navegando a la página para resolver anti-bot...');
-        await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+        console.log(' Navegando a la página para resolver anti-bot...');
+        await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
 
         // Esperar un poco para que se resuelva el anti-bot
         await page.waitForTimeout(2000);
 
         // Ahora hacer el POST mediante fetch desde el contexto de la página
-        console.log('📤 Enviando POST request...');
+        console.log(' Enviando POST request...');
         const result = await page.evaluate(async (targetUrl, data) => {
             // Convertir data a URLSearchParams
             const formBody = new URLSearchParams();
@@ -94,7 +95,7 @@ async function postWithPuppeteer(url, formData, options = {}) {
  * Smart POST request - Intenta con axios primero, si encuentra anti-bot usa Puppeteer
  */
 async function smartPost(url, formData, options = {}) {
-    console.log('🔄 Intentando POST con axios...');
+    console.log(' Intentando POST con axios...');
 
     try {
         // Convertir formData object a URLSearchParams
@@ -115,23 +116,23 @@ async function smartPost(url, formData, options = {}) {
 
         // Verificar si es un challenge anti-bot
         if (isAntiBotChallenge(response.data)) {
-            console.log('⚠️  Anti-bot detectado, cambiando a Puppeteer...');
-            return await postWithPuppeteer(url, formData, options);
+            console.log('  Anti-bot detectado, cambiando a Playwright...');
+            return await postWithPlaywright(url, formData, options);
         }
 
         return response;
 
     } catch (error) {
-        console.error('❌ Error en axios:', error.message);
+        console.error(' Error en axios:', error.message);
 
-        // Si axios falla, intentar con Puppeteer como fallback
-        console.log('🔄 Intentando con Puppeteer como fallback...');
-        return await postWithPuppeteer(url, formData, options);
+        // Si axios falla, intentar con Playwright como fallback
+        console.log(' Intentando con Playwright como fallback...');
+        return await postWithPlaywright(url, formData, options);
     }
 }
 
 module.exports = {
     smartPost,
     isAntiBotChallenge,
-    postWithPuppeteer
+    postWithPlaywright
 };

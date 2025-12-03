@@ -4,17 +4,17 @@ module.exports = {
     // Configuración del servidor
     PORT: process.env.PORT || 3000,
 
-    // URLs (before http://localhost/inventario-app/web now havainventory.infinityfreeapp.com/inventario-app/web)
+    // URLs
     APP_BASE_URL: process.env.APP_BASE_URL || 'https://havainventory.infinityfreeapp.com/inventario-app/web',
     UPDATE_RATE_ENDPOINT: process.env.UPDATE_RATE_ENDPOINT || '/index.php?r=site/update-usdt-rate',
     P2P_URL: process.env.P2P_URL || 'https://p2p.binance.com/trade/all-payments/USDT?fiat=VES',
 
-    // Selectores CSS para extraer datos
+    // Selectores CSS para extraer datos (actualizados para Playwright)
     SELECTORS: {
-        TRADING_CARD: '.bn-flex.flex-col.border-b.border-b-line.py-l',
-        PRICE_CONTAINER: '.bn-flex.items-baseline.gap-4xs.flex-row.w-fit',
+        TRADING_CARD: '[role="row"]', // Filas de la tabla de ofertas
+        PRICE_CONTAINER: '.bn-flex.items-baseline.gap-4xs.flex-row',
         // Selector alternativo si el principal falla
-        PRICE_ALT: '[data-testid="price"]'
+        PRICE_ALT: 'td.bn-web-table-cell div'
     },
 
     // Regex para extraer precio
@@ -25,9 +25,9 @@ module.exports = {
     RETRY_ATTEMPTS: parseInt(process.env.RETRY_ATTEMPTS) || 3,
     UPDATE_INTERVAL: parseInt(process.env.UPDATE_INTERVAL) || 5,
 
-    // Configuración de Puppeteer
-    PUPPETEER_OPTIONS: {
-        headless: 'new',
+    // Configuración de Playwright
+    PLAYWRIGHT_OPTIONS: {
+        headless: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',

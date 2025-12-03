@@ -193,7 +193,7 @@ app.post('/update-rate', async (req, res) => {
                 console.log(`  • ${key}: ${updateResponse.headers[key]}`);
             });
         } else {
-            console.log('  (No disponibles - usado con Puppeteer)');
+            console.log('  (No disponibles - usado con Playwright)');
         }
 
         console.log('\n█ RESPONSE DATA (Contenido completo):');

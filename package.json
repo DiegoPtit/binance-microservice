@@ -8,14 +8,20 @@
     "dev": "nodemon server.js",
     "scrape": "node scraper.js"
   },
-  "keywords": ["binance", "p2p", "scraper", "usdt", "ves"],
+  "keywords": [
+    "binance",
+    "p2p",
+    "scraper",
+    "usdt",
+    "ves"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "puppeteer": "^21.6.0",
     "axios": "^1.6.2",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "playwright": "^1.57.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

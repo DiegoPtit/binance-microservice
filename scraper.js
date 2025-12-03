@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer');
+const { chromium } = require('playwright');
 const config = require('./config');
 
 /**
@@ -46,21 +46,23 @@ async function scrapeBinanceP2P() {
     let browser = null;
 
     try {
-        console.log('🚀 Iniciando scraping de Binance P2P...');
-        console.log(`📍 URL: ${config.P2P_URL}`);
+        console.log(' Iniciando scraping de Binance P2P...');
+        console.log(` URL: ${config.P2P_URL}`);
 
-        // Lanzar navegador
-        browser = await puppeteer.launch(config.PUPPETEER_OPTIONS);
-        const page = await browser.newPage();
+        // Lanzar navegador con Playwright
+        browser = await chromium.launch(config.PLAYWRIGHT_OPTIONS);
+        const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        });
+        const page = await context.newPage();
 
-        // Configurar timeout y user agent
+        // Configurar timeout
         page.setDefaultTimeout(config.PAGE_TIMEOUT);
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36');
 
         // Navegar a la página
-        console.log('🌐 Navegando a Binance P2P...');
+        console.log(' Navegando a Binance P2P...');
         await page.goto(config.P2P_URL, {
-            waitUntil: 'networkidle2',
+            waitUntil: 'networkidle',
             timeout: config.PAGE_TIMEOUT
         });
 
@@ -74,8 +76,8 @@ async function scrapeBinanceP2P() {
         await page.waitForTimeout(2000);
 
         // Extraer precios
-        console.log('📊 Extrayendo precios...');
-        const prices = await page.evaluate((selectors, regex) => {
+        console.log(' Extrayendo precios...');
+        const prices = await page.evaluate(({ selectors }) => {
             const cards = document.querySelectorAll(selectors.TRADING_CARD);
             const results = [];
 
@@ -103,19 +105,19 @@ async function scrapeBinanceP2P() {
             });
 
             return results;
-        }, config.SELECTORS, config.PRICE_REGEX.toString());
+        }, { selectors: config.SELECTORS });
 
         await browser.close();
         browser = null;
 
-        console.log(`✅ Extraídos ${prices.length} elementos`);
+        console.log(` Extraídos ${prices.length} elementos`);
 
         // Parsear precios
         const parsedPrices = prices
             .map(item => {
                 const price = parsePrice(item.rawText);
                 // Log detallado para debugging
-                console.log(`🔍 Raw: "${item.rawText}" → Parsed: ${price} VES`);
+                console.log(` Raw: "${item.rawText}" → Parsed: ${price} VES`);
                 return {
                     ...item,
                     price: price
@@ -150,7 +152,7 @@ async function scrapeBinanceP2P() {
         };
 
     } catch (error) {
-        console.error('❌ Error en scraping:', error.message);
+        console.error(' Error en scraping:', error.message);
 
         return {
             success: false,
@@ -168,7 +170,7 @@ async function scrapeBinanceP2P() {
 if (require.main === module) {
     scrapeBinanceP2P()
         .then(result => {
-            console.log('\n📋 Resultado completo:');
+            console.log('\n Resultado completo:');
             console.log(JSON.stringify(result, null, 2));
             process.exit(result.success ? 0 : 1);
         })
