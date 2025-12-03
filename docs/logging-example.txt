@@ -1,0 +1,64 @@
+================================================================================
+[2025-12-02 21:15:45] UPDATE-RATE
+================================================================================
+REQUEST:
+  Method: POST
+  IP: ::1
+
+PROCESO:
+  Scraping: Exitoso - Mejor precio: 53.75 VES
+  Ofertas analizadas: 18
+  URL destino: https://havainventory.infinityfreeapp.com/inventario-app/web/index.php?r=site/update-usdt-rate
+  Duración request: 2340ms
+  
+RESULTADO:
+  Success: SÍ
+  Status: 200
+  Data: Precio actualizado a 53.75 VES
+  
+DURACIÓN: 4521ms
+================================================================================
+
+================================================================================
+[2025-12-02 21:20:32] UPDATE-RATE
+================================================================================
+REQUEST:
+  Method: POST
+  IP: ::1
+
+ERROR:
+  Message: Timeout de conexión al servidor destino
+  Type: Error
+  Code: ECONNABORTED
+  Stack: Error: Timeout de conexión al servidor destino
+    at createError (node_modules\axios\lib\core\createError.js:16:15)
+    at RedirectableRequest.handleRequestTimeout (node_modules\axios\lib\adapters\http.js:304:16)
+    at RedirectableRequest.emit (events.js:314:20)... [truncado para mantener el log conciso]
+  
+RESULTADO:
+  Success: NO
+  Status: 500
+  
+DURACIÓN: 15003ms
+================================================================================
+
+================================================================================
+[2025-12-02 21:25:10] UPDATE-RATE
+================================================================================
+REQUEST:
+  Method: POST
+  IP: 192.168.1.100
+
+PROCESO:
+  Scraping: Exitoso - Mejor precio: 53.80 VES
+  Ofertas analizadas: 20
+  URL destino: https://havainventory.infinityfreeapp.com/inventario-app/web/index.php?r=site/update-usdt-rate
+  Duración request: 1850ms
+  
+RESULTADO:
+  Success: SÍ
+  Status: 200
+  Data: Precio actualizado a 53.80 VES
+  
+DURACIÓN: 3200ms
+================================================================================
