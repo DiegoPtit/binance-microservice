@@ -2,6 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const config = require('./config');
 const { scrapeBinanceP2P } = require('./scraper');
+const { smartPost, isAntiBotChallenge } = require('./smart-request');
 
 const app = express();
 app.use(express.json());
@@ -79,10 +80,16 @@ app.get('/get-averages', async (req, res) => {
  * Endpoint principal: Scrapear y actualizar precio en la aplicación
  */
 app.post('/update-rate', async (req, res) => {
+    const startTime = Date.now();
+
     try {
-        console.log('\n🔄 Iniciando proceso de actualización...');
+        console.log('\n' + '='.repeat(80));
+        console.log('🔄 INICIANDO PROCESO DE ACTUALIZACIÓN');
+        console.log('='.repeat(80));
+        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
 
         // 1. Scrapear precios de Binance P2P
+        console.log('\n📊 PASO 1: Scraping de Binance P2P...');
         const scrapeResult = await scrapeBinanceP2P();
 
         if (!scrapeResult.success) {
@@ -90,56 +97,189 @@ app.post('/update-rate', async (req, res) => {
         }
 
         const bestPrice = scrapeResult.data.bestPrice;
-        console.log(`💰 Mejor precio obtenido: ${bestPrice} VES`);
+        console.log(`✅ Scraping exitoso`);
+        console.log(`   💰 Mejor precio: ${bestPrice} VES`);
+        console.log(`   📈 Precio promedio: ${scrapeResult.data.avgPrice} VES`);
+        console.log(`   📊 Total ofertas: ${scrapeResult.data.totalOffers}`);
 
-        // 2. Enviar a la aplicación principal
+        // 2. Preparar actualización a la aplicación principal
         const updateUrl = `${config.APP_BASE_URL}${config.UPDATE_RATE_ENDPOINT}`;
-        console.log(`📤 Enviando a: ${updateUrl}`);
+        console.log('\n📤 PASO 2: Preparando envío al servidor destino');
+        console.log(`   🌐 URL destino: ${updateUrl}`);
 
-        // Preparar datos en formato form-urlencoded (Yii espera $_POST)
-        const params = new URLSearchParams();
-        params.append('precio_paralelo', bestPrice);
-        params.append('observaciones', `Actualización automática desde Binance P2P. ${scrapeResult.data.totalOffers} ofertas analizadas.`);
-        params.append('source', 'binance-p2p-scraper');
-        params.append('metadata', JSON.stringify({
-            avgPrice: scrapeResult.data.avgPrice,
-            maxPrice: scrapeResult.data.maxPrice,
-            totalOffers: scrapeResult.data.totalOffers,
-            timestamp: scrapeResult.timestamp
-        }));
+        // Preparar datos como objeto para smartPost
+        const postData = {
+            precio_paralelo: bestPrice,
+            observaciones: `Actualización automática desde Binance P2P. ${scrapeResult.data.totalOffers} ofertas analizadas.`,
+            source: 'binance-p2p-scraper',
+            metadata: JSON.stringify({
+                avgPrice: scrapeResult.data.avgPrice,
+                maxPrice: scrapeResult.data.maxPrice,
+                totalOffers: scrapeResult.data.totalOffers,
+                timestamp: scrapeResult.timestamp
+            })
+        };
 
-        console.log('📦 Datos a enviar:');
+        console.log('\n📦 DATOS A ENVIAR (POST):');
         console.log(`   - precio_paralelo: ${bestPrice}`);
+        console.log(`   - observaciones: ${postData.observaciones}`);
         console.log(`   - source: binance-p2p-scraper`);
-        console.log(`   - totalOffers: ${scrapeResult.data.totalOffers}`);
+        console.log(`   - metadata: ${postData.metadata}`);
 
-        const updateResponse = await axios.post(updateUrl, params, {
-            timeout: 10000,
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': 'BinanceP2PScraper/1.0'
-            }
+        console.log('\n📋 HEADERS A ENVIAR:');
+        console.log('   - Content-Type: application/x-www-form-urlencoded');
+        console.log('   - User-Agent: BinanceP2PScraper/1.0');
+
+        // 3. Enviar al servidor con bypass anti-bot
+        console.log('\n🚀 PASO 3: Enviando request HTTP POST (con bypass anti-bot)...');
+        const requestStartTime = Date.now();
+
+        const updateResponse = await smartPost(updateUrl, postData, {
+            timeout: 15000,
+            userAgent: 'BinanceP2PScraper/1.0'
         });
 
-        console.log('✅ Precio actualizado correctamente en la aplicación');
+        const requestDuration = Date.now() - requestStartTime;
 
+        // 4. Mostrar respuesta DETALLADA del servidor
+        console.log('\n' + '='.repeat(80));
+        console.log('📥 RESPUESTA DEL SERVIDOR DESTINO');
+        console.log('='.repeat(80));
+        console.log(`   ⏱️  Tiempo de respuesta: ${requestDuration}ms`);
+        console.log(`   🔢 Status Code: ${updateResponse.status}`);
+        console.log(`   📝 Status Text: ${updateResponse.statusText || 'OK'}`);
+
+        if (updateResponse.finalUrl) {
+            console.log(`   🌐 URL Final: ${updateResponse.finalUrl}`);
+        }
+
+        console.log('\n📋 RESPONSE HEADERS:');
+        if (updateResponse.headers && Object.keys(updateResponse.headers).length > 0) {
+            Object.keys(updateResponse.headers).forEach(key => {
+                console.log(`   - ${key}: ${updateResponse.headers[key]}`);
+            });
+        } else {
+            console.log('   (No disponibles - usado con Puppeteer)');
+        }
+
+        console.log('\n📄 RESPONSE DATA (Contenido completo):');
+        console.log('   Tipo de dato:', typeof updateResponse.data);
+        if (typeof updateResponse.data === 'string') {
+            console.log('   Longitud:', updateResponse.data.length, 'caracteres');
+            console.log('   Primeros 1000 caracteres:');
+            console.log('   ---');
+            console.log(updateResponse.data.substring(0, 1000));
+            console.log('   ---');
+            if (updateResponse.data.length > 1000) {
+                console.log(`   ... (${updateResponse.data.length - 1000} caracteres más)`);
+            }
+
+            // Intentar parsear si parece JSON
+            if (updateResponse.data.trim().startsWith('{') || updateResponse.data.trim().startsWith('[')) {
+                try {
+                    const parsed = JSON.parse(updateResponse.data);
+                    console.log('\n   ✅ Data parseada como JSON:');
+                    console.log(JSON.stringify(parsed, null, 2).split('\n').map(line => '   ' + line).join('\n'));
+                } catch (e) {
+                    console.log('\n   ⚠️  No se pudo parsear como JSON válido');
+                }
+            }
+        } else {
+            console.log(JSON.stringify(updateResponse.data, null, 2).split('\n').map(line => '   ' + line).join('\n'));
+        }
+
+        console.log('\n' + '='.repeat(80));
+
+        // Verificar si el status code es exitoso
+        const isSuccess = updateResponse.status >= 200 && updateResponse.status < 300;
+
+        if (isSuccess) {
+            console.log('✅ ACTUALIZACIÓN COMPLETADA EXITOSAMENTE');
+        } else {
+            console.log('⚠️  ADVERTENCIA: Status code no exitoso (' + updateResponse.status + ')');
+        }
+
+        const totalDuration = Date.now() - startTime;
+        console.log(`⏱️  Duración total del proceso: ${totalDuration}ms`);
+        console.log('='.repeat(80) + '\n');
+
+        // Responder al cliente del microservicio
         res.json({
-            success: true,
-            message: 'Precio actualizado correctamente',
+            success: isSuccess,
+            message: isSuccess ? 'Precio actualizado correctamente' : 'Request enviado pero status code no exitoso',
+            statusCode: updateResponse.status,
+            statusText: updateResponse.statusText || 'OK',
+            duration: {
+                total: totalDuration,
+                request: requestDuration
+            },
             data: {
                 newPrice: bestPrice,
                 scrapeInfo: scrapeResult.data,
-                updateResponse: updateResponse.data
+                updateResponse: {
+                    status: updateResponse.status,
+                    statusText: updateResponse.statusText || 'OK',
+                    headers: updateResponse.headers,
+                    data: updateResponse.data
+                }
             }
         });
 
     } catch (error) {
-        console.error('❌ Error en /update-rate:', error.message);
+        const totalDuration = Date.now() - startTime;
+
+        console.log('\n' + '='.repeat(80));
+        console.error('❌ ERROR EN /update-rate');
+        console.log('='.repeat(80));
+        console.error(`   📛 Error message: ${error.message}`);
+        console.error(`   📊 Error name: ${error.name}`);
+        console.error(`   ⏱️  Duración hasta el error: ${totalDuration}ms`);
+
+        // Si es un error de Axios, mostrar detalles específicos
+        if (error.response) {
+            console.error('\n   🌐 ERROR DE RESPUESTA HTTP:');
+            console.error(`   - Status: ${error.response.status}`);
+            console.error(`   - Status Text: ${error.response.statusText}`);
+            console.error('\n   - Headers:');
+            Object.keys(error.response.headers).forEach(key => {
+                console.error(`     • ${key}: ${error.response.headers[key]}`);
+            });
+            console.error('\n   - Response Data:');
+            console.error(JSON.stringify(error.response.data, null, 2).split('\n').map(line => '     ' + line).join('\n'));
+        } else if (error.request) {
+            console.error('\n   📡 ERROR DE REQUEST (No se recibió respuesta):');
+            console.error(`   - Timeout: ${error.code === 'ECONNABORTED' ? 'SÍ' : 'NO'}`);
+            console.error(`   - Error code: ${error.code}`);
+            console.error(`   - Request details:`, error.config ? {
+                url: error.config.url,
+                method: error.config.method,
+                headers: error.config.headers,
+                timeout: error.config.timeout
+            } : 'No disponible');
+        } else {
+            console.error('\n   ⚙️  ERROR DE CONFIGURACIÓN O INTERNO:');
+            console.error(`   - Stack trace:`);
+            console.error(error.stack.split('\n').map(line => '     ' + line).join('\n'));
+        }
+
+        console.log('='.repeat(80) + '\n');
 
         res.status(500).json({
             success: false,
             error: error.message,
-            timestamp: new Date().toISOString()
+            errorName: error.name,
+            errorCode: error.code,
+            timestamp: new Date().toISOString(),
+            duration: totalDuration,
+            details: error.response ? {
+                status: error.response.status,
+                statusText: error.response.statusText,
+                headers: error.response.headers,
+                data: error.response.data
+            } : (error.request ? {
+                request: 'Enviado pero sin respuesta',
+                timeout: error.code === 'ECONNABORTED'
+            } : null)
         });
     }
 });
