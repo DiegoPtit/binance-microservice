@@ -1,261 +1,178 @@
-# 🤖 Binance P2P Scraper - Microservicio
+# Binance P2P Scraper - Microservicio
 
-Microservicio Node.js para extraer automáticamente precios USDT/VES desde Binance P2P y actualizar el sistema de inventario.
+Microservicio para extraer precios USDT/VES de Binance P2P y actualizar automáticamente el precio paralelo en la aplicación de inventario.
 
-## 📋 Requisitos
+## 📋 Características
 
-- **Node.js** v16 o superior
-- **npm** v7 o superior
-- Conexión a internet estable
-- Sistema de inventario en ejecución
+- ✅ **Scraping automático** de precios USDT/VES de Binance P2P
+- ✅ **Compatible con Replit** y entornos serverless
+- ✅ **Bypass de anti-bot** automático con Puppeteer
+- ✅ **API RESTful** con múltiples endpoints
+- ✅ **Logging detallado** de todas las operaciones
 
 ## 🚀 Instalación
 
-### 1. Instalar dependencias
+### En Replit (Recomendado)
 
-```bash
-cd microservice
-npm install
-```
+1. **Crear un nuevo Repl** e importar este repositorio
+2. **Establecer variables de entorno** en Secrets:
+   ```
+   REPLIT=true
+   APP_BASE_URL=https://tu-aplicacion.com
+   UPDATE_RATE_ENDPOINT=/index.php?r=site/update-usdt-rate
+   ```
+3. **Ejecutar**:
+   ```bash
+   npm install
+   npm start
+   ```
 
-### 2. Configurar variables de entorno
+### En Local (Windows/Mac/Linux)
 
-Copiar el archivo de ejemplo y configurar:
+1. **Clonar el repositorio**:
+   ```bash
+   git clone <repo-url>
+   cd binance-microservice
+   ```
 
-```bash
-copy .env.example .env
-```
+2. **Instalar dependencias**:
+   ```bash
+   npm install
+   ```
 
-Editar `.env` con tus valores:
+3. **Configurar variables** en `.env`:
+   ```env
+   PORT=3000
+   APP_BASE_URL=https://tu-aplicacion.com
+   UPDATE_RATE_ENDPOINT=/index.php?r=site/update-usdt-rate
+   ```
 
-```env
-PORT=3000
-APP_BASE_URL=http://localhost
-UPDATE_RATE_ENDPOINT=/site/update-usdt-rate
-P2P_URL=https://p2p.binance.com/trade/all-payments/USDT?fiat=VES
-PAGE_TIMEOUT=30000
-RETRY_ATTEMPTS=3
-UPDATE_INTERVAL=5
-```
+4. **Ejecutar**:
+   ```bash
+   npm start
+   ```
 
-## 🎯 Uso
+## 📡 Endpoints
 
-### Modo Servidor (Recomendado)
-
-Iniciar el servidor API:
-
-```bash
-npm start
-```
-
-El servidor estará disponible en `http://localhost:3000`
-
-### Modo Desarrollo (con auto-reload)
-
-```bash
-npm run dev
-```
-
-### Prueba Manual (solo scraping)
-
-```bash
-npm run scrape
-```
-
-## 📡 Endpoints API
-
-### 1. Health Check
-```http
-GET http://localhost:3000/health
-```
+### `GET /health`
+Verif Estado del servicio.
 
 **Respuesta:**
 ```json
 {
   "status": "OK",
-  "timestamp": "2025-12-02T17:00:00.000Z",
+  "timestamp": "2025-12-03T12:00:00.000Z",
   "service": "Binance P2P Scraper",
   "version": "1.0.0"
 }
 ```
 
-### 2. Scrapear Precios
-```http
-GET http://localhost:3000/scrape
-```
+### `GET /scrape`
+Scrapea los precios de Binance P2P.
 
 **Respuesta:**
 ```json
 {
   "success": true,
-  "timestamp": "2025-12-02T17:00:00.000Z",
+  "timestamp": "2025-12-03T12:00:00.000Z",
   "data": {
-    "bestPrice": 45.23,
-    "avgPrice": 45.67,
-    "maxPrice": 46.12,
-    "totalOffers": 15,
+    "bestPrice": 399.25,
+    "avgPrice": 401.48,
+    "maxPrice": 419.00,
+    "totalOffers": 11,
     "prices": [...]
   }
 }
 ```
 
-### 3. Scrapear y Actualizar (Principal)
-```http
-POST http://localhost:3000/update-rate
+### `GET /get-averages`
+Obtiene solo los promedios y precios resumidos.
+
+**Respuesta:**
+```json
+{
+  "success": true,
+  "timestamp": "2025-12-03T12:00:00.000Z",
+  "data": {
+    "mejorPrecio": 399.25,
+    "precioPromedio": 401.48,
+    "precioMaximo": 419.00,
+    "mejorPrecioObtenido": 399.25
+  }
+}
 ```
+
+### `POST /update-rate`
+Scrapea y actualiza el precio en la aplicación principal.
 
 **Respuesta:**
 ```json
 {
   "success": true,
   "message": "Precio actualizado correctamente",
+  "statusCode": 200,
+  "duration": {
+    "total": 5340,
+    "request": 1250
+  },
   "data": {
-    "newPrice": 45.23,
-    "scrapeInfo": {...},
-    "updateResponse": {...}
+    "newPrice": 399.25,
+    "scrapeInfo": {...}
   }
 }
 ```
 
-### 4. Ver Configuración
-```http
-GET http://localhost:3000/config
-```
+### `GET /config`
+Obtiene la configuración actual del servicio.
 
-## 🔧 Integración con el Sistema
+## 🔧 Tecnologías
 
-El microservicio envía actualizaciones al endpoint de tu aplicación principal:
+- **Node.js** + Express
+- **puppeteer-core** + **@sparticuz/chromium** (optimizado para serverless)
+- **axios** para HTTP requests
+- **dotenv** para configuración
 
-**POST** `http://localhost/site/update-usdt-rate`
+## ⚙️ Configuración
 
-**Payload:**
-```json
-{
-  "precio_paralelo": 45.23,
-  "observaciones": "Actualización automática desde Binance P2P. 15 ofertas analizadas.",
-  "source": "binance-p2p-scraper",
-  "metadata": {
-    "avgPrice": 45.67,
-    "maxPrice": 46.12,
-    "totalOffers": 15,
-    "timestamp": "2025-12-02T17:00:00.000Z"
-  }
-}
-```
+### Variables de Entorno
 
-## 🧪 Pruebas
+| Variable | Descripción | Default |
+|----------|-------------|---------|
+| `PORT` | Puerto del servidor | `3000` |
+| `APP_BASE_URL` | URL de la aplicación destino | - |
+| `UPDATE_RATE_ENDPOINT` | Endpoint para actualizar precio | `/index.php?r=site/update-usdt-rate` |
+| `P2P_URL` | URL de Binance P2P | `https://p2p.binance.com/...` |
+| `PAGE_TIMEOUT` | Timeout para navegación (ms) | `30000` |
+| `REPLIT` | Si está en Replit | `false` |
 
-### Test completo con cURL:
+## 🐛 Troubleshooting
 
-**Bash / CMD:**
-```bash
-curl -X POST http://localhost:3000/update-rate
-```
+### En Replit
 
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Method Post -Uri "http://localhost:3000/update-rate"
-```
+- Asegúrate de tener `REPLIT=true` en las variables de entorno
+- El scraping puede tomar entre 10-30 segundos
+- Si falla, revisa los logs en la consola
 
-### Test solo scraping:
+### En Local
 
-```bash
-curl http://localhost:3000/scrape
-```
+- Asegúrat de tener **Google Chrome** instalado
+- En Windows, verifica las rutas del ejecutable
+- En Linux, instala: `apt-get install chromium-browser`
 
-## 📊 Logging
+### Error "No se pudo encontrar el ejecutable de Chrome"
 
-Los logs se muestran en la consola con el siguiente formato:
+**Solución para Windows:**
+- Instala Google Chrome en la ubicación estándar
+- O modifica la ruta en `scraper.js` línea 22-28
 
-```
-🚀 Iniciando scraping de Binance P2P...
-📍 URL: https://p2p.binance.com/trade/all-payments/USDT?fiat=VES
-🌐 Navegando a Binance P2P...
-⏳ Esperando tarjetas de trading...
-📊 Extrayendo precios...
-✅ Extraídos 15 elementos
-💰 Mejor precio: 45.23 VES
-📈 Precio promedio: 45.67 VES
-📉 Precio máximo: 46.12 VES
-📤 Enviando a: http://localhost/site/update-usdt-rate
-✅ Precio actualizado correctamente en la aplicación
-```
+**Solución para Linux/Replit:**
+- El código usa automáticamente @sparticuz/chromium
+- No requiere instalación adicional
 
-## ⚙️ Configuración Avanzada
-
-### Modificar selectores CSS
-
-Si Binance cambia su estructura HTML, edita `config.js`:
-
-```javascript
-SELECTORS: {
-  TRADING_CARD: '.nueva-clase-tarjeta',
-  PRICE_CONTAINER: '.nuevo-selector-precio',
-  PRICE_ALT: '[data-testid="nuevo-testid"]'
-}
-```
-
-### Ajustar timeout
-
-Si la conexión es lenta:
-
-```javascript
-PAGE_TIMEOUT: 60000, // 60 segundos
-```
-
-## ❌ Solución de Problemas
-
-### Error: "No se pudieron extraer precios válidos"
-
-**Solución:** Binance puede haber cambiado su HTML. Verifica los selectores en `config.js`
-
-### Error: "Cannot connect to localhost"
-
-**Solución:** Asegúrate de que Apache/PHP esté ejecutándose y el sistema de inventario accesible
-
-### Error: "Puppeteer failed to launch"
-
-**Solución en Windows:**
-```bash
-npm install --force
-```
-
-**Solución en Linux:**
-```bash
-sudo apt-get install -y chromium-browser
-```
-
-## 🔄 Automatización (Próximamente)
-
-Para ejecutar automáticamente cada X minutos, puedes usar:
-
-### Windows (Task Scheduler)
-- Crear tarea programada que ejecute: `node e:\www\htdocs\inventario-app\microservice\server.js`
-
-### Linux (Cron)
-```bash
-*/5 * * * * cd /path/to/microservice && npm start
-```
-
-## 📝 Notas Importantes
-
-- ⚠️ **Respeta los términos de servicio de Binance**
-- 🔒 **No abuses del scraping** - Usa intervalos de 5+ minutos
-- 📊 **Monitorea los logs** para detectar cambios en la API
-- 💾 **Guarda backups** de precios históricos
-- 🔐 **Considera usar un token de autenticación** para el endpoint
-
-## 🛠️ Stack Tecnológico
-
-- **Express.js** - Framework web
-- **Puppeteer** - Headless browser para scraping
-- **Axios** - Cliente HTTP
-- **dotenv** - Gestión de variables de entorno
-
-## 📄 Licencia
+## 📝 Licencia
 
 MIT
 
-## 👨‍💻 Autor
+## 👤 Autor
 
-Sistema de Inventario - Integración Binance P2P
+DiegoPtit

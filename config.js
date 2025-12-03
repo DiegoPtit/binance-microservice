@@ -9,7 +9,7 @@ module.exports = {
     UPDATE_RATE_ENDPOINT: process.env.UPDATE_RATE_ENDPOINT || '/index.php?r=site/update-usdt-rate',
     P2P_URL: process.env.P2P_URL || 'https://p2p.binance.com/trade/all-payments/USDT?fiat=VES',
 
-    // Selectores CSS para extraer datos (actualizados para Playwright)
+    // Selectores CSS para extraer datos
     SELECTORS: {
         TRADING_CARD: '[role="row"]', // Filas de la tabla de ofertas
         PRICE_CONTAINER: '.bn-flex.items-baseline.gap-4xs.flex-row',
@@ -25,15 +25,19 @@ module.exports = {
     RETRY_ATTEMPTS: parseInt(process.env.RETRY_ATTEMPTS) || 3,
     UPDATE_INTERVAL: parseInt(process.env.UPDATE_INTERVAL) || 5,
 
-    // Configuración de Playwright
-    PLAYWRIGHT_OPTIONS: {
+    // Configuración de Puppeteer para entornos serverless (Replit, Lambda, etc.)
+    PUPPETEER_OPTIONS: {
         headless: true,
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process',
+            '--disable-extensions'
         ]
     }
 };
