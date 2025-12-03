@@ -1,46 +1,5 @@
-const puppeteer = require('puppeteer-core');
+const puppeteer = require('puppeteer');
 const config = require('./config');
-
-// Detectar si estamos en un entorno serverless o local
-const isServerless = !!process.env.AWS_LAMBDA_FUNCTION_VERSION || process.env.REPLIT;
-
-/**
- * Obtiene la ruta del ejecutable de Chromium según el entorno
- */
-async function getChromiumPath() {
-    if (isServerless) {
-        // En entornos serverless (Replit, Lambda, etc.)
-        const chromium = require('@sparticuz/chromium');
-        return await chromium.executablePath();
-    } else {
-        // En entornos locales, intentar encontrar Chrome/Chromium instalado
-        const os = require('os');
-        const platform = os.platform();
-
-        if (platform === 'win32') {
-            // Rutas comunes en Windows
-            const paths = [
-                'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-                'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-                process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
-            ];
-
-            const fs = require('fs');
-            for (const path of paths) {
-                if (fs.existsSync(path)) {
-                    return path;
-                }
-            }
-        } else if (platform === 'darwin') {
-            return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-        } else {
-            // Linux
-            return 'google-chrome';
-        }
-    }
-
-    throw new Error('No se pudo encontrar el ejecutable de Chrome/Chromium');
-}
 
 /**
  * Convierte el formato de precio de Binance P2P a número flotante
@@ -89,25 +48,9 @@ async function scrapeBinanceP2P() {
     try {
         console.log(' Iniciando scraping de Binance P2P...');
         console.log(` URL: ${config.P2P_URL}`);
-        console.log(` Entorno: ${isServerless ? 'Serverless (Replit/Lambda)' : 'Local'}`);
 
-        const executablePath = await getChromiumPath();
-        console.log(` Ejecutable: ${executablePath}`);
-
-        // Configurar argumentos según el entorno
-        let args = config.PUPPETEER_OPTIONS.args;
-        if (isServerless) {
-            const chromium = require('@sparticuz/chromium');
-            args = chromium.args.concat(args);
-        }
-
-        // Lanzar navegador
-        browser = await puppeteer.launch({
-            args: args,
-            executablePath: executablePath,
-            headless: true,
-        });
-
+        // Lanzar navegador con Puppeteer
+        browser = await puppeteer.launch(config.PUPPETEER_OPTIONS);
         const page = await browser.newPage();
 
         // Configurar timeout y user agent
@@ -117,23 +60,18 @@ async function scrapeBinanceP2P() {
         // Navegar a la página
         console.log(' Navegando a Binance P2P...');
         await page.goto(config.P2P_URL, {
-            waitUntil: 'domcontentloaded',
-            timeout: 60000
+            waitUntil: 'networkidle2',
+            timeout: config.PAGE_TIMEOUT
         });
 
         // Esperar a que carguen las tarjetas de trading
         console.log(' Esperando tarjetas de trading...');
-        try {
-            await page.waitForSelector(config.SELECTORS.TRADING_CARD, {
-                timeout: 45000
-            });
-        } catch (e) {
-            console.log(' Advertencia: No se encontró el selector inicial, esperando más tiempo...');
-            await new Promise(resolve => setTimeout(resolve, 5000));
-        }
+        await page.waitForSelector(config.SELECTORS.TRADING_CARD, {
+            timeout: config.PAGE_TIMEOUT
+        });
 
         // Esperar un poco más para asegurar que todo cargó
-        await new Promise(resolve => setTimeout(resolve, 3000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Extraer precios
         console.log(' Extrayendo precios...');

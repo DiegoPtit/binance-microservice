@@ -1,4 +1,4 @@
-const { chromium } = require('playwright');
+const puppeteer = require('puppeteer');
 
 /*
 *
@@ -9,25 +9,22 @@ const { chromium } = require('playwright');
 async function inspectSelectors() {
     console.log(' Inspeccionando selectores de Binance P2P...\n');
 
-    const browser = await chromium.launch({
+    const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
     });
 
     try {
-        const context = await browser.newContext({
-            userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        });
-        const page = await context.newPage();
+        const page = await browser.newPage();
 
         console.log(' Navegando a Binance P2P...');
         await page.goto('https://p2p.binance.com/trade/all-payments/USDT?fiat=VES', {
-            waitUntil: 'networkidle',
+            waitUntil: 'networkidle2',
             timeout: 60000
         });
 
         console.log(' Esperando carga completa...');
-        await page.waitForTimeout(5000);
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Buscar todos los elementos que contengan "Bs" (bolivares)
         const pricesInfo = await page.evaluate(() => {
@@ -72,7 +69,9 @@ async function inspectSelectors() {
                 'div[class*="list"]',
                 '[class*="p2p"][class*="item"]',
                 '[role="row"]',
-                '[class*="trade"]'
+                '[class*="trade"]',
+                'tr',
+                'tbody tr'
             ];
 
             possibleCardSelectors.forEach(selector => {

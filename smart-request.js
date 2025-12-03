@@ -1,51 +1,10 @@
 /**
  * Utilidad para hacer requests HTTP con soporte para anti-bot protection
- * Usa puppeteer-core con chromium adaptativo (local o serverless)
+ * Usa Puppeteer para ejecutar JavaScript cuando es necesario
  */
 
 const axios = require('axios');
-const puppeteer = require('puppeteer-core');
-
-// Detectar si estamos en un entorno serverless o local
-const isServerless = !!process.env.AWS_LAMBDA_FUNCTION_VERSION || process.env.REPLIT;
-
-/**
- * Obtiene la ruta del ejecutable de Chromium según el entorno
- */
-async function getChromiumPath() {
-    if (isServerless) {
-        // En entornos serverless (Replit, Lambda, etc.)
-        const chromium = require('@sparticuz/chromium');
-        return await chromium.executablePath();
-    } else {
-        // En entornos locales, intentar encontrar Chrome/Chromium instalado
-        const os = require('os');
-        const platform = os.platform();
-
-        if (platform === 'win32') {
-            // Rutas comunes en Windows
-            const paths = [
-                'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-                'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-                process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
-            ];
-
-            const fs = require('fs');
-            for (const path of paths) {
-                if (fs.existsSync(path)) {
-                    return path;
-                }
-            }
-        } else if (platform === 'darwin') {
-            return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-        } else {
-            // Linux
-            return 'google-chrome';
-        }
-    }
-
-    throw new Error('No se pudo encontrar el ejecutable de Chrome/Chromium');
-}
+const puppeteer = require('puppeteer');
 
 /**
  * Detecta si la respuesta es un challenge anti-bot
@@ -64,24 +23,13 @@ function isAntiBotChallenge(html) {
  * Realiza un POST usando Puppeteer para bypass anti-bot
  */
 async function postWithPuppeteer(url, formData, options = {}) {
-    const executablePath = await getChromiumPath();
-
-    // Configurar argumentos según el entorno
-    let args = [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-    ];
-
-    if (isServerless) {
-        const chromium = require('@sparticuz/chromium');
-        args = chromium.args.concat(args);
-    }
-
     const browser = await puppeteer.launch({
-        args: args,
-        executablePath: executablePath,
         headless: true,
+        args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+        ]
     });
 
     try {

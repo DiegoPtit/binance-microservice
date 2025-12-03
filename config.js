@@ -11,10 +11,10 @@ module.exports = {
 
     // Selectores CSS para extraer datos
     SELECTORS: {
-        TRADING_CARD: '[role="row"]', // Filas de la tabla de ofertas
-        PRICE_CONTAINER: '.bn-flex.items-baseline.gap-4xs.flex-row',
+        TRADING_CARD: 'div[class*="order"]', // Contenedores de ofertas
+        PRICE_CONTAINER: '.bn-flex.items-baseline.gap-4xs.flex-row.w-fit',
         // Selector alternativo si el principal falla
-        PRICE_ALT: 'td.bn-web-table-cell div'
+        PRICE_ALT: '.bn-flex.w-\\[70\\%\\].flex-col.gap-2xs div'
     },
 
     // Regex para extraer precio
