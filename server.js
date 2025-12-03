@@ -84,12 +84,12 @@ app.post('/update-rate', async (req, res) => {
 
     try {
         console.log('\n' + '='.repeat(80));
-        console.log('🔄 INICIANDO PROCESO DE ACTUALIZACIÓN');
+        console.log(' INICIANDO PROCESO DE ACTUALIZACIÓN');
         console.log('='.repeat(80));
-        console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+        console.log(` Timestamp: ${new Date().toISOString()}`);
 
         // 1. Scrapear precios de Binance P2P
-        console.log('\n📊 PASO 1: Scraping de Binance P2P...');
+        console.log('\n PASO 1: Scraping de Binance P2P...');
         const scrapeResult = await scrapeBinanceP2P();
 
         if (!scrapeResult.success) {
@@ -97,15 +97,15 @@ app.post('/update-rate', async (req, res) => {
         }
 
         const bestPrice = scrapeResult.data.bestPrice;
-        console.log(`✅ Scraping exitoso`);
-        console.log(`   💰 Mejor precio: ${bestPrice} VES`);
-        console.log(`   📈 Precio promedio: ${scrapeResult.data.avgPrice} VES`);
-        console.log(`   📊 Total ofertas: ${scrapeResult.data.totalOffers}`);
+        console.log(` Scraping exitoso`);
+        console.log(`   Mejor precio: ${bestPrice} VES`);
+        console.log(`   Precio promedio: ${scrapeResult.data.avgPrice} VES`);
+        console.log(`   Total ofertas: ${scrapeResult.data.totalOffers}`);
 
         // 2. Preparar actualización a la aplicación principal
         const updateUrl = `${config.APP_BASE_URL}${config.UPDATE_RATE_ENDPOINT}`;
-        console.log('\n📤 PASO 2: Preparando envío al servidor destino');
-        console.log(`   🌐 URL destino: ${updateUrl}`);
+        console.log('\n PASO 2: Preparando envío al servidor destino');
+        console.log(`   URL destino: ${updateUrl}`);
 
         // Preparar datos como objeto para smartPost
         const postData = {
@@ -120,18 +120,18 @@ app.post('/update-rate', async (req, res) => {
             })
         };
 
-        console.log('\n📦 DATOS A ENVIAR (POST):');
+        console.log('\n DATOS A ENVIAR (POST):');
         console.log(`   - precio_paralelo: ${bestPrice}`);
         console.log(`   - observaciones: ${postData.observaciones}`);
         console.log(`   - source: binance-p2p-scraper`);
         console.log(`   - metadata: ${postData.metadata}`);
 
-        console.log('\n📋 HEADERS A ENVIAR:');
+        console.log('\n HEADERS A ENVIAR:');
         console.log('   - Content-Type: application/x-www-form-urlencoded');
         console.log('   - User-Agent: BinanceP2PScraper/1.0');
 
         // 3. Enviar al servidor con bypass anti-bot
-        console.log('\n🚀 PASO 3: Enviando request HTTP POST (con bypass anti-bot)...');
+        console.log('\n PASO 3: Enviando request HTTP POST (con bypass anti-bot)...');
         const requestStartTime = Date.now();
 
         const updateResponse = await smartPost(updateUrl, postData, {
@@ -143,17 +143,17 @@ app.post('/update-rate', async (req, res) => {
 
         // 4. Mostrar respuesta DETALLADA del servidor
         console.log('\n' + '='.repeat(80));
-        console.log('📥 RESPUESTA DEL SERVIDOR DESTINO');
+        console.log(' RESPUESTA DEL SERVIDOR DESTINO');
         console.log('='.repeat(80));
-        console.log(`   ⏱️  Tiempo de respuesta: ${requestDuration}ms`);
-        console.log(`   🔢 Status Code: ${updateResponse.status}`);
-        console.log(`   📝 Status Text: ${updateResponse.statusText || 'OK'}`);
+        console.log(`   Tiempo de respuesta: ${requestDuration}ms`);
+        console.log(`   Status Code: ${updateResponse.status}`);
+        console.log(`   Status Text: ${updateResponse.statusText || 'OK'}`);
 
         if (updateResponse.finalUrl) {
-            console.log(`   🌐 URL Final: ${updateResponse.finalUrl}`);
+            console.log(`   URL Final: ${updateResponse.finalUrl}`);
         }
 
-        console.log('\n📋 RESPONSE HEADERS:');
+        console.log('\n RESPONSE HEADERS:');
         if (updateResponse.headers && Object.keys(updateResponse.headers).length > 0) {
             Object.keys(updateResponse.headers).forEach(key => {
                 console.log(`   - ${key}: ${updateResponse.headers[key]}`);
@@ -162,7 +162,7 @@ app.post('/update-rate', async (req, res) => {
             console.log('   (No disponibles - usado con Puppeteer)');
         }
 
-        console.log('\n📄 RESPONSE DATA (Contenido completo):');
+        console.log('\n RESPONSE DATA (Contenido completo):');
         console.log('   Tipo de dato:', typeof updateResponse.data);
         if (typeof updateResponse.data === 'string') {
             console.log('   Longitud:', updateResponse.data.length, 'caracteres');
@@ -178,10 +178,10 @@ app.post('/update-rate', async (req, res) => {
             if (updateResponse.data.trim().startsWith('{') || updateResponse.data.trim().startsWith('[')) {
                 try {
                     const parsed = JSON.parse(updateResponse.data);
-                    console.log('\n   ✅ Data parseada como JSON:');
+                    console.log('\n    Data parseada como JSON:');
                     console.log(JSON.stringify(parsed, null, 2).split('\n').map(line => '   ' + line).join('\n'));
                 } catch (e) {
-                    console.log('\n   ⚠️  No se pudo parsear como JSON válido');
+                    console.log('\n     No se pudo parsear como JSON válido');
                 }
             }
         } else {
@@ -194,13 +194,13 @@ app.post('/update-rate', async (req, res) => {
         const isSuccess = updateResponse.status >= 200 && updateResponse.status < 300;
 
         if (isSuccess) {
-            console.log('✅ ACTUALIZACIÓN COMPLETADA EXITOSAMENTE');
+            console.log(' ACTUALIZACIÓN COMPLETADA EXITOSAMENTE');
         } else {
-            console.log('⚠️  ADVERTENCIA: Status code no exitoso (' + updateResponse.status + ')');
+            console.log('  ADVERTENCIA: Status code no exitoso (' + updateResponse.status + ')');
         }
 
         const totalDuration = Date.now() - startTime;
-        console.log(`⏱️  Duración total del proceso: ${totalDuration}ms`);
+        console.log(`  Duración total del proceso: ${totalDuration}ms`);
         console.log('='.repeat(80) + '\n');
 
         // Responder al cliente del microservicio
@@ -229,15 +229,15 @@ app.post('/update-rate', async (req, res) => {
         const totalDuration = Date.now() - startTime;
 
         console.log('\n' + '='.repeat(80));
-        console.error('❌ ERROR EN /update-rate');
+        console.error(' ERROR EN /update-rate');
         console.log('='.repeat(80));
-        console.error(`   📛 Error message: ${error.message}`);
-        console.error(`   📊 Error name: ${error.name}`);
-        console.error(`   ⏱️  Duración hasta el error: ${totalDuration}ms`);
+        console.error(`    Error message: ${error.message}`);
+        console.error(`    Error name: ${error.name}`);
+        console.error(`     Duración hasta el error: ${totalDuration}ms`);
 
         // Si es un error de Axios, mostrar detalles específicos
         if (error.response) {
-            console.error('\n   🌐 ERROR DE RESPUESTA HTTP:');
+            console.error('\n    ERROR DE RESPUESTA HTTP:');
             console.error(`   - Status: ${error.response.status}`);
             console.error(`   - Status Text: ${error.response.statusText}`);
             console.error('\n   - Headers:');
@@ -247,7 +247,7 @@ app.post('/update-rate', async (req, res) => {
             console.error('\n   - Response Data:');
             console.error(JSON.stringify(error.response.data, null, 2).split('\n').map(line => '     ' + line).join('\n'));
         } else if (error.request) {
-            console.error('\n   📡 ERROR DE REQUEST (No se recibió respuesta):');
+            console.error('\n    ERROR DE REQUEST (No se recibió respuesta):');
             console.error(`   - Timeout: ${error.code === 'ECONNABORTED' ? 'SÍ' : 'NO'}`);
             console.error(`   - Error code: ${error.code}`);
             console.error(`   - Request details:`, error.config ? {
@@ -257,7 +257,7 @@ app.post('/update-rate', async (req, res) => {
                 timeout: error.config.timeout
             } : 'No disponible');
         } else {
-            console.error('\n   ⚙️  ERROR DE CONFIGURACIÓN O INTERNO:');
+            console.error('\n     ERROR DE CONFIGURACIÓN O INTERNO:');
             console.error(`   - Stack trace:`);
             console.error(error.stack.split('\n').map(line => '     ' + line).join('\n'));
         }
@@ -315,17 +315,17 @@ app.use((req, res) => {
 // Iniciar servidor
 const PORT = config.PORT;
 app.listen(PORT, () => {
-    console.log(`\n🚀 Servidor iniciado en http://localhost:${PORT}`);
-    console.log(`📍 Endpoints disponibles:`);
+    console.log(`\n Servidor iniciado en http://localhost:${PORT}`);
+    console.log(` Endpoints disponibles:`);
     console.log(`   - GET  /health       (Estado del servicio)`);
     console.log(`   - GET  /scrape       (Scrapear precios)`);
     console.log(`   - GET  /get-averages (Obtener promedios resumidos)`);
     console.log(`   - POST /update-rate  (Scrapear y actualizar)`);
     console.log(`   - GET  /config       (Configuración actual)`);
-    console.log(`\n⚙️  Configuración:`);
+    console.log(`\n Configuración:`);
     console.log(`   - URL P2P: ${config.P2P_URL}`);
     console.log(`   - Endpoint destino: ${config.APP_BASE_URL}${config.UPDATE_RATE_ENDPOINT}`);
-    console.log(`\n💡 Tip: Ejecuta POST http://localhost:${PORT}/update-rate para testear\n`);
+    console.log(`\n Tip: Ejecuta POST http://localhost:${PORT}/update-rate para testear\n`);
 });
 
 module.exports = app;
