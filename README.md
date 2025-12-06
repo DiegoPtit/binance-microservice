@@ -2,15 +2,15 @@
 
 Microservicio para extraer precios USDT/VES de Binance P2P y actualizar automáticamente el precio paralelo en la aplicación de inventario.
 
-## 📋 Características
+## Características
 
-- ✅ **Scraping automático** de precios USDT/VES de Binance P2P
-- ✅ **Compatible con Replit** y entornos serverless
-- ✅ **Bypass de anti-bot** automático con Puppeteer
-- ✅ **API RESTful** con múltiples endpoints
-- ✅ **Logging detallado** de todas las operaciones
+- **Scraping automático** de precios USDT/VES de Binance P2P
+- **Compatible con Replit** y entornos serverless
+- **Bypass de anti-bot** automático con Puppeteer
+- **API RESTful** con múltiples endpoints
+- **Logging detallado** de todas las operaciones
 
-## 🚀 Instalación
+## Instalación
 
 ### En Replit (Recomendado)
 
@@ -125,14 +125,14 @@ Scrapea y actualiza el precio en la aplicación principal.
 ### `GET /config`
 Obtiene la configuración actual del servicio.
 
-## 🔧 Tecnologías
+## Tecnologías
 
 - **Node.js** + Express
 - **puppeteer-core** + **@sparticuz/chromium** (optimizado para serverless)
 - **axios** para HTTP requests
 - **dotenv** para configuración
 
-## ⚙️ Configuración
+## Configuración
 
 ### Variables de Entorno
 
@@ -145,7 +145,7 @@ Obtiene la configuración actual del servicio.
 | `PAGE_TIMEOUT` | Timeout para navegación (ms) | `30000` |
 | `REPLIT` | Si está en Replit | `false` |
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### En Replit
 
@@ -169,10 +169,10 @@ Obtiene la configuración actual del servicio.
 - El código usa automáticamente @sparticuz/chromium
 - No requiere instalación adicional
 
-## 📝 Licencia
+## Licencia
 
 MIT
 
-## 👤 Autor
+## Autor
 
 DiegoPtit
